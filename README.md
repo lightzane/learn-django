@@ -1,210 +1,157 @@
-# 01 - Getting Started
+# 02 - Applications and Routes
 
-https://www.youtube.com/watch?v=UmljXZIypDc&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
+https://www.youtube.com/watch?v=a48xeeo5Vnk&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
 
-## Installation
+**A project can have multiple apps**
 
-**MAKE SURE THAT YOU ARE IN A VIRTUAL ENVIRONMENT** ([using a virtual environment](https://github.com/lightzane/learn-python/blob/main/main.py#L5))
+## Create Blog App
 
-```bash
-pip install django
-```
+Make sure you are in the same directory with the `manage.py`
 
-## Verify installation
+To create our blog app, we need this command:
 
-```bash
-python -m django --version
-```
-
-Result: `5.0.2`
-
-## Django Admin
-
-This command should be available once after installation.
+### Start App Command
 
 ```bash
-django-admin --version
+python manage.py startapp <app_name>
 ```
 
-Result: `5.0.2`
-
-### Subcommands
+Actual:
 
 ```bash
-django-admin
+python manage.py startapp blog
 ```
 
-**RESULT**
+#### Start App Command Output
 
-```bash
-Type 'django-admin help <subcommand>' for help on a specific subcommand.
-
-Available subcommands:
-
-[django]
-    check
-    compilemessages
-    createcachetable
-    dbshell
-    diffsettings
-    dumpdata
-    flush
-    inspectdb
-    loaddata
-    makemessages
-    makemigrations
-    migrate
-    optimizemigration
-    runserver
-    sendtestemail
-    shell
-    showmigrations
-    sqlflush
-    sqlmigrate
-    sqlsequencereset
-    squashmigrations
-    startapp
-    startproject
-    test
-    testserver
-Note that only Django core commands are listed as settings are not properly configured (error: Requested setting INSTALLED_APPS, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.).
-```
-
-## Starting a Project
-
-```bash
-django-admin startproject <proj_name>
-```
-
-**OUTPUT**
+This should now create the following tree structure:
 
 ```txt
-.
-└─  proj_name
-│     ├─  proj_name
-│     │    ├─  __init__.py
-│     │    ├─  asgi.py
-│     │    ├─  settings.py
-│     │    ├─  urls.py
-│     │    └─  wsgi.py
-│     └─  manage.py
-├─  .gitignore
-└─  README.md
+./
+├─  proj_name/
+│     ├─  blog/
+│     │     ├─  migrations/
+│     │     │     └─  __init__.py
+│     │     ├─  __init__.py
+│     │     ├─  admin.py
+│     │     ├─  apps.py
+│     │     ├─  models.py
+│     │     ├─  tests.py
+│     │     └─  views.py
+│     └─  proj_name/
 ```
 
-> **A single project can contain multiple apps**
+## Adding and mapping a route
 
-`manage.py` - This will be our commander when running servers, starting apps, etc.
-`wsgi.py` - this is how the Python web application and web server communicate
+### Edit Views
 
-## Initial URL
-
-`urls.py`
+`views.py` Initial
 
 ```py
-from django.contrib import admin
+from django.shortcuts import render
+
+# Create your views here.
+
+```
+
+Define a `home()` function where we will handle the routes
+
+```py
+from django.shortcuts import render
+from django.http import HttpResponse
+
+# Create your views here.
+def home(request):
+    return HttpResponse('<h1>Blog Home</h1>')
+```
+
+Next we need to create `urls.py` to map the URL pattern to access this `home()` view function
+
+### Create `urls.py` to map url for `home()` view function
+
+`blog/urls.py`
+
+```py
 from django.urls import path
+from . import views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('', views.home, name='blog-home')
 ]
 ```
 
-## Open default website
+This wouldn't work just yet. We need to update our main `urls.py` for the entire project.
 
-Go inside the `proj_name` parent folder and run the following command:
+### Update main `urls.py` in our project
+
+`proj_name/urls.py`
+
+```diff
+ from django.contrib import admin
++from django.urls import path, include
+
+ urlpatterns = [
+     path('admin/', admin.site.urls),
++    path('blog/', include('blog.urls'))
+ ]
+```
+
+### Run development server
 
 ```bash
 python manage.py runserver
 ```
 
-**OUTPUT**
+And open in browser `http://localhost:8000`
+
+In terminal, you would now get this output:
 
 ```bash
-Watching for file changes with StatReloader
-Performing system checks...
-
-System check identified no issues (0 silenced).
-
-You have 18 unapplied migration(s). Your project may not work properly until you apply the migrations for app(s): admin, auth, contenttypes, sessions.
-Run 'python manage.py migrate' to apply them.
-February 20, 2024 - 20:29:42
-Django version 5.0.2, using settings 'proj_name.settings'
-Starting development server at http://127.0.0.1:8000/
-Quit the server with CTRL-BREAK.
+Not Found: /
+[20/Feb/2024 21:42:37] "GET / HTTP/1.1" 404 2167
 ```
 
-> **NOTICE**: 18 unapplied migration, DO NOT RUN python manage.py migrate for now...
+Once we add **URL patterns**, then it should no longer display the default development site like it did before.
 
-You can now visit browser on the following URL: http://localhost:8000
+But we can try to access `http://localhost:8000/blog` instead and get our expected result as we defined in our `views.py`.
 
-![First Django Website](./readme_assets/first_django_website.png)
-
-### `manage.py` list of available arguments
-
-To see other available arguments other than `runserver`, run the following command:
-
-```bash
-python manage.py
+```html
+<h1>Blog Home</h1>
 ```
 
-Without arguments, this will output a list of available arguments instead
+## Add and map a new route `About`
 
-**OUTPUT**
+DIY ...
 
-```bash
-Type 'manage.py help <subcommand>' for help on a specific subcommand.
+Tip:
 
-Available subcommands:
+```py
+# blog/urls.py
 
-[auth]
-    changepassword
-    createsuperuser
+from django.urls import path
+from . import views
 
-[contenttypes]
-    remove_stale_contenttypes
-
-[django]
-    check
-    compilemessages
-    createcachetable
-    dbshell
-    diffsettings
-    dumpdata
-    flush
-    inspectdb
-    loaddata
-    makemessages
-    makemigrations
-    migrate
-    optimizemigration
-    sendtestemail
-    shell
-    showmigrations
-    sqlflush
-    sqlmigrate
-    sqlsequencereset
-    squashmigrations
-    startapp
-    startproject
-    test
-    testserver
-
-[sessions]
-    clearsessions
-
-[staticfiles]
-    collectstatic
-    findstatic
-    runserver
+urlpatterns = [
+    path('', views.home, name='blog-home'),
+    path('about/', views.about, name='blog-about'),
+]
 ```
 
-## Admin Route
+### Why add a trailing slash `/`?
 
-If you remember checking the `urls.py` in [Initial URL](#initial-url) section. We can access it via `http://localhost:8000/admin`
+By default, if it has a trailing slash, then **Django** will redirect routes without a forward or trailing slash to that route that has one,
 
-![Admin Route](./readme_assets/url_admin.png)
+## Make blog app a homepage
 
-## Shutting down the server
+```diff
+# proj_name/urls.py
+ from django.contrib import admin
+ from django.urls import path, include
 
-Use `Ctrl + C` shortcut. (may take twice or more)
+ urlpatterns = [
+     path('admin/', admin.site.urls),
++    path('', include('blog.urls'))
+ ]
+```
+
+Make the path empty.
