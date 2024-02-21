@@ -1,44 +1,88 @@
-# 04 - Admin Page
+# 05 - Database and Migrations
 
-https://www.youtube.com/watch?v=1PkNiYlkkjo&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
+https://www.youtube.com/watch?v=aHC3uTkT9r8&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
 
-Run your server and access http://localhost:8000/admin
+**Django** has a built-in **ORM** (Object Relational Mapping)
 
-```bash
-python manage.py runserver
+Python **Class** = Database **Models**
+
+We're going to use `SQLite` which is built-in in Django as well.
+
+> Django, a high-level web framework for Python, includes built-in support for using SQLite as a database backend. SQLite is a lightweight, serverless database engine that stores data in a local file. It's a good choice for development and small to medium-sized applications.<br><br>Source: https://medium.com/@codewithbushra/using-sqlite-as-a-database-backend-in-django-projects-code-with-bushra-d23e3100686e#:~:text=Django%2C%20a%20high%2Dlevel%20web,small%20to%20medium%2Dsized%20applications.
+
+## Open `models.py` in blog app
+
+```py
+from django.db import models
+
+# Create your models here.
+
 ```
 
-And you should be able to see this following page:
+## Create Post model
 
-![Admin Page](./readme_assets/url_admin.png)
+```py
+from django.db import models
+from django.utils import timezone
+from django.contrib.auth.models import User
 
-## Create Admin User
+# Create your models here.
+class Post(models.Model):
+    title = models.CharField(max_length=100)
+    content = models.TextField()
+    date_posted = models.DateTimeField(default=timezone.now)
+    author = models.ForeignKey(User, on_delete=models.CASCADE) # 'cascade' <- if user is deleted, we want to delete their posts as well
 
-```bash
-python manage.py createsuperuser
+    f""" Note
+    For DateTimeField arguments:
+        - auto_now      (bool) = allows to get current time on EVERY UPDATE
+        - auto_now_add  (bool) = allows to get current time on CREATE but DISABLES modification
+    """
+
 ```
 
-You will get a lot of errors, but the summary is `no such table: auth_user`
+## Run `makemigrations` command
 
-The problem is we have not created the database that we're going to use for this project yet.
-
-## Initialize Database (`makemigrations`)
-
-But it's easy to do. We just have to run a few _migration_ commands. Database _migration_ allows us to apply changes in the database.
-
-Since we have not created any database yet, the **first _migration_ command will create** the default tables for us.
+Since we made changes in our database model, we need to call the `makemigration` command to detect those changes.
 
 ```bash
 python manage.py makemigrations
 ```
 
-Result: `No changes detected` - since this is initial and we have not created any changes yet in any database/models.
+**RESULT**
 
-> If you forgot subcommands, just run the command `python manage.py` to display available subcommands
+```bash
+Migrations for 'blog':
+  blog\migrations\0001_initial.py
+    - Create model Post
+```
 
-`makemigrations` will just detect the changes and prepares **Django** to update the database but it does not actually run those changes yet.
+If you're curious, you can open `blog/migraiton/0001_initial.py`. This is what **migrations** will execute to create this model.
 
-## Apply migrations (`migrate`)
+### Viewing the SQL code
+
+We can view the SQL command that will be executed by the `0001_initial.py`
+
+`python manage.py sqlmigrate <app_name> <migration_number>`
+
+```bash
+python manage.py sqlmigrate blog 0001
+```
+
+**RESULT**
+
+```bash
+BEGIN;
+--
+-- Create model Post
+--
+CREATE TABLE "blog_post" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "title" varchar(100) NOT NULL, "content" text
+NOT NULL, "date_posted" datetime NOT NULL, "author_id" integer NOT NULL REFERENCES "auth_user" ("id") DEFERRABLE INITIALLY DEFERRED);
+CREATE INDEX "blog_post_author_id_dd7a8485" ON "blog_post" ("author_id");
+COMMIT;
+```
+
+## Apply `migrate` changes
 
 ```bash
 python manage.py migrate
@@ -48,56 +92,189 @@ python manage.py migrate
 
 ```bash
 Operations to perform:
-  Apply all migrations: admin, auth, contenttypes, sessions
+  Apply all migrations: admin, auth, blog, contenttypes, sessions
 Running migrations:
-  Applying contenttypes.0001_initial... OK
-  Applying auth.0001_initial... OK
-  Applying admin.0001_initial... OK
-  Applying admin.0002_logentry_remove_auto_add... OK
-  Applying admin.0003_logentry_add_action_flag_choices... OK
-  Applying contenttypes.0002_remove_content_type_name... OK
-  Applying auth.0002_alter_permission_name_max_length... OK
-  Applying auth.0003_alter_user_email_max_length... OK
-  Applying auth.0004_alter_user_username_opts... OK
-  Applying auth.0005_alter_user_last_login_null... OK
-  Applying auth.0006_require_contenttypes_0002... OK
-  Applying auth.0007_alter_validators_add_error_messages... OK
-  Applying auth.0008_alter_user_username_max_length... OK
-  Applying auth.0009_alter_user_last_name_max_length... OK
-  Applying auth.0010_alter_group_name_max_length... OK
-  Applying auth.0011_update_proxy_permissions... OK
-  Applying auth.0012_alter_user_first_name_max_length... OK
-  Applying sessions.0001_initial... OK
+  Applying blog.0001_initial... OK
 ```
 
-You would also notice that it did create/update the following files:
+## Query database models using Django Python Shell
 
-- `db.sqlite3`
-
-## Rerun command to create Admin or superuser
+We can use the **Django Python Shell** which allows us to work with the models interactively line by line
 
 ```bash
-python manage.py createsuperuser
+python manage.py shell
 ```
 
 **RESULT**
 
 ```bash
-Username (leave blank to use 'lightzane'): lightzane
-Email address: lightzane@email.com
-Password:
-Password (again):
-Superuser created successfully.
+Python 3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+>>>
 ```
 
-## Login to Admin page
+### Make few interactions
 
-![Admin Login](./readme_assets/admin_login.png)
+```bash
+>>> from blog.models import Post
+>>> from django.contrib.auth.models import User
+>>> User.objects.all()
+<QuerySet [<User: lightzane>, <User: qa_tester>]>
+>>> User.objects.first()
+<User: lightzane>
+>>> User.objects.filter(username='qa_tester')
+<QuerySet [<User: qa_tester>]>
+>>> User.objects.filter(username='qa_tester').first()
+<User: qa_tester>
+>>> user = User.objects.filter(username='lightzane').first()
+>>> user.id
+1
+>>> user.pk
+1
+>>> user = User.objects.get(id=1)
+>>> user
+<User: lightzane>
+>>> Post.objects.all()
+<QuerySet []>
+>>> post_1 = Post(title='Blog 1', content='First post content!', author=user)
+>>> Post.objects.all()
+<QuerySet []>
+>>> post_1.save()
+>>> Post.objects.all()
+<QuerySet [<Post: Post object (1)>]>
+```
 
-![Admin Auth Users](./readme_assets/admin_auth_user.png)
+**NOTICE** that the output is `Post object (1)`, let's modify this by adding a `__str__` dunder in our `Post` class.
 
-## Add User
+#### Update `models.py` dunder
 
-Add user, save then also update its profile to include email address.
+`Dunder` = **d**ouble **under**score
 
-![Add User](./readme_assets/add_user.png)
+```py
+class Post(models.Model):
+
+    ...
+
+    def __str__(self) -> str:
+        return self.title
+```
+
+#### Restart shell
+
+To restart, you can use the command `quit()` or `exit()`
+
+```bash
+python manage.py shell
+```
+
+```bash
+Python 3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+>>> from blog.models import Post
+>>> from django.contrib.auth.models import User
+>>> Post.objects.all()
+<QuerySet [<Post: Blog 1>]>
+>>>
+```
+
+#### Add another post
+
+```bash
+>>> user = User.objects.filter(username='lightzane').first()
+>>> user
+<User: lightzane>
+>>> post_2 = Post(title='Blog 2', content='Second post content', author_id=user.id)
+>>> post_2.save()
+>>> Post.objects.all()
+<QuerySet [<Post: Blog 1>, <Post: Blog 2>]>
+```
+
+##### Inspect a Post data
+
+```bash
+>>> post = Post.objects.first()
+>>> post.content
+'First post content!'
+>>> post.date_posted
+datetime.datetime(2024, 2, 21, 12, 33, 2, 44967, tzinfo=datetime.timezone.utc)
+>>> post.author
+<User: lightzane>
+>>> post.author.email
+'lightzane@email.com'
+```
+
+#### Get all posts from a specific user
+
+```bash
+>>> user.post_set
+<django.db.models.fields.related_descriptors.create_reverse_many_to_one_manager.<locals>.RelatedManager object at 0x0000024587D62FF0>
+>>> user.post_set.all()
+<QuerySet [<Post: Blog 1>, <Post: Blog 2>]>
+```
+
+#### Create another post directly using the `post_set.create()`
+
+```bash
+>>> user.post_set.create(title='Blog 3', content='Third post content!')
+<Post: Blog 3>
+>>> Post.objects.all()
+<QuerySet [<Post: Blog 1>, <Post: Blog 2>, <Post: Blog 3>]>
+```
+
+Notice that we don't have to specify the `author` in this approach, since **Django** already knows the author that we stored in the `user` variable
+
+## Use DB data instead of mock data
+
+`blog/views.py`
+
+```py
+from django.shortcuts import render
+from .models import Post
+
+def home(request):
+    context = {
+        'posts': Post.objects.all()
+    }
+    return render(request, 'blog/home.html', context)
+
+```
+
+## Update template to change formatting of Dates
+
+**Documentation of Django Date formats:**<br>
+https://docs.djangoproject.com/en/5.0/ref/templates/builtins/#date
+
+```html
+<small class="text-muted">{{ post.date_posted | date:"F d, Y" }}</small>
+```
+
+**Strictly no spaces between the `date:` and `"`!**<br>(e.g. `post.date_posted | date: "F d, Y"` - this will throw an error that template cannot be parsed)
+
+## Register Models in Admin page
+
+Go to `blog/admins.py`
+
+```py
+from django.contrib import admin
+
+# Register your models here.
+
+```
+
+Update it to register the `Post` class/model
+
+```py
+from django.contrib import admin
+from .models import Post
+
+# Register your models here.
+admin.site.register(Post)
+```
+
+It should now display `Post` in the admin page.
+
+![Admin Page Registers Post](./readme_assets/admin_page_register_post.png)
+
+![Admin Page Blog Post Add](./readme_assets/admin_page_blog_post_add.png)
