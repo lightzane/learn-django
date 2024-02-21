@@ -1,362 +1,103 @@
-# 03 - Templates
+# 04 - Admin Page
 
-https://www.youtube.com/watch?v=qDwdMDQ8oX4&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
+https://www.youtube.com/watch?v=1PkNiYlkkjo&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
 
-`blog/views.py`
-
-```py
-from django.shortcuts import render
-from django.http import HttpResponse
-
-# Create your views here.
-def home(request):
-    return HttpResponse('<h1>Blog Home</h1>')
-
-def about(request):
-    return HttpResponse('<h1>Blog About</h1>')
-```
-
-Instead of having a hard-code HTML content, let's create **templates**.
-
-## Create Templates
-
-Create a directory `templates` under `blog`. By default, **Django** looks into a _templates_ subdirectory and inside into each of our `INSTALLED_APPS` (see `settings.py`).
-
-Django looks onto this convention:
-
-```txt
-<app_name> -> templates -> <app_name> -> *.html
-blog -> templates -> blog -> template.html
-```
-
-So let's create another `blog` folder inside the _templates_ subdirectory
-
-```txt
-proj_name/
-  └─  blog/
-       └─  templates/
-             └─  blog/
-                  ├─  about.html
-                  └─  home.html
-```
-
-`home.html`
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Home</title>
-  </head>
-  <body>
-    <h1>Blog Home</h1>
-  </body>
-</html>
-```
-
-## Add Blog AppConfig in Project Settings
-
-We have `blog/apps.py`, copy its **Class** name, in this case `BlogConfig` and add it into our **Project settings** located in `proj_name/settings.py`
-
-```py
-from django.apps import AppConfig
-
-
-class BlogConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'blog'
-```
-
-`proj_name/settings.py`
-
-```diff
- ...
-
- # Application definition
-
- INSTALLED_APPS = [
-+    'blog.apps.BlogConfig',
-     'django.contrib.admin',
-     'django.contrib.auth',
-     'django.contrib.contenttypes',
-     'django.contrib.sessions',
-     'django.contrib.messages',
-     'django.contrib.staticfiles',
- ]
-
- ...
-```
-
-## Update `views.py`
-
-```diff
-...
-
-def home(request):
-+   return render(request, 'blog/home.html')
--   return HttpResponse('<h1>Blog Home</h1>')
-
-...
-```
-
-## Run server and verify
+Run your server and access http://localhost:8000/admin
 
 ```bash
 python manage.py runserver
 ```
 
-View page source in browser and you'll see this result:
+And you should be able to see this following page:
 
-```html
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Home</title>
-  </head>
-  <body>
-    <h1>Blog Home</h1>
-  </body>
-</html>
+![Admin Page](./readme_assets/url_admin.png)
+
+## Create Admin User
+
+```bash
+python manage.py createsuperuser
 ```
 
-> Repeat the same steps for the `About` page
+You will get a lot of errors, but the summary is `no such table: auth_user`
 
-## Add mock data to Context
+The problem is we have not created the database that we're going to use for this project yet.
 
-The mock data will be accessed via the `key` of the `Context` dict that we'll pass in.
+## Initialize Database (`makemigrations`)
 
-`views.py`
+But it's easy to do. We just have to run a few _migration_ commands. Database _migration_ allows us to apply changes in the database.
 
-```diff
- from django.shortcuts import render
+Since we have not created any database yet, the **first _migration_ command will create** the default tables for us.
 
-+posts = [
-+    {
-+        'author': 'Lightzane',
-+        'title': 'Blog Post 1',
-+        'content': 'First post content',
-+        'date_posted': 'Feb 21, 2024'
-+    },
-+    {
-+        'author': 'Lightzane',
-+        'title': 'Blog Post 2',
-+        'content': 'Second post content',
-+        'date_posted': 'Feb 22, 2024'
-+    },
-+]
-
- # Create your views here.
- def home(request):
-+    context = {
-+        'posts': posts
-+    }
-+    return render(request, 'blog/home.html', context)
--    return render(request, 'blog/home.html')
-
-...
+```bash
+python manage.py makemigrations
 ```
 
-## Access the data in template via code block
+Result: `No changes detected` - since this is initial and we have not created any changes yet in any database/models.
 
-Django is using a template engine, and to use a code block in html, we will use the following syntax: `{% ... %}`
+> If you forgot subcommands, just run the command `python manage.py` to display available subcommands
 
-### Loop code block
+`makemigrations` will just detect the changes and prepares **Django** to update the database but it does not actually run those changes yet.
 
-`blog/home.html`
+## Apply migrations (`migrate`)
 
-```diff
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Home</title>
-  </head>
-
-  <body>
-+   {% for post in posts %}
-+       <h1>{{ post.title }}</h1>
-+       <p>By {{ post.author }} on {{ post.date_posted }}</p>
-+       <p>{{ post.content }}</p>
-+   {% endfor %}
-  </body>
-</html>
-
+```bash
+python manage.py migrate
 ```
 
-### Conditional code block
+**RESULT**
 
-`home.html`
-
-```diff
- <head>
-     <meta charset="UTF-8" />
-     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-+    {% if title %}
-+        <title>Django Blog - {{ title }}</title>
-+    {% else %}
-+        <title>Django Blog</title>
-+    {% endif %}
--    <title>Home</title>
- </head>
+```bash
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, sessions
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying sessions.0001_initial... OK
 ```
 
-> Do the same for `about.html`
+You would also notice that it did create/update the following files:
 
-### Template Inheritance
+- `db.sqlite3`
 
-Apply `DRY` (**D**on't **R**epeat **Y**ourself) and reduce duplicate blocks of codes that we can **REUSE**
+## Rerun command to create Admin or superuser
 
-Create `blog/base.html`
-
-<!-- prettier-ignore -->
-```html
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    {% if title %}
-        <title>Django Blog - {{ title }}</title>
-    {% else %}
-        <title>Django Blog</title>
-    {% endif %}
-  </head>
-  <body>
-    <!-- 'content' is arbitrary name -->
-    {% block content %}{% endblock %}
-  </body>
-</html>
+```bash
+python manage.py createsuperuser
 ```
 
-#### `{% extends "..." %}`
+**RESULT**
 
-Update `home.html` to extend `base.html`
-
-<!-- prettier-ignore -->
-```html
-{% extends "blog/base.html" %}
-
-<!-- 'content' is defined by the parent we extend -->
-{% block content %}
-    {% for post in posts %}
-        <h1>{{ post.title }}</h1>
-        <p>By {{ post.author }} on {{ post.date_posted }}</p>
-        <p>{{ post.content }}</p>
-    {% endfor %}
-{% endblock content %}
+```bash
+Username (leave blank to use 'lightzane'): lightzane
+Email address: lightzane@email.com
+Password:
+Password (again):
+Superuser created successfully.
 ```
 
-Note that you can also use `{% endblock %}` instead of `{% endblock content %}`. But if you have multiple blocks, you may lose track of which block would end. So it's recommended to use `{ endblock content }`
+## Login to Admin page
 
-> Do the same for `About.html`
+![Admin Login](./readme_assets/admin_login.png)
 
-## Apply Styles
+![Admin Auth Users](./readme_assets/admin_auth_user.png)
 
-This project uses `Bootstrap 4` (https://getbootstrap.com/docs/4.0/getting-started/introduction/#starter-template)
+## Add User
 
-`base.html`
+Add user, save then also update its profile to include email address.
 
-<!-- prettier-ignore -->
-```diff
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-+    <!-- Required meta tags -->
-+    <meta charset="utf-8">
-+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-+
-+    <!-- Bootstrap CSS -->
-+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-    {% if title %}
-        <title>Django Blog - {{ title }}</title>
-    {% else %}
-        <title>Django Blog</title>
-    {% endif %}
-
-+   <!-- Optional JavaScript -->
-+   <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-+   <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-+   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-+   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-  </head>
-  <body>
-+   <div class="container">
-      <!-- 'content' is arbitrary name -->
-      {% block content %}{% endblock %}
-+   </div>
-  </body>
-</html>
-```
-
-**Snippets** (https://github.com/CoreyMSchafer/code_snippets/tree/master/Django_Blog/snippets)
-
-Copy `navigation.html` snippet here: https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/navigation.html
-
-Copy `main.html` snippet here: https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/main.html
-
-## Create `static` directory for CSS and Javascript
-
-Django reads static files from this subdirectory: `<app>/static/<app>`
-
-`blog/static/blog/main.css`
-
-Copy snippet here: https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/main.css
-
-## Tell Django to load static files
-
-`base.html`
-
-```diff
-+{% load static %}
- <!DOCTYPE html>
- <html lang="en">
-   <head>
-     <!-- Required meta tags -->
-     <meta charset="utf-8">
-
-     ...
-```
-
-## Import the static `css` file
-
-```html
-<link rel="stylesheet" type="text/css" href="{% static 'blog/main.css' %}" />
-```
-
-The `static` creates an absolute URL of the static files and accesses that `blog/static/blog/main.css`.
-
-**Replace current html inside loop code block in `home.html` with article snippet**
-Copy `article.html` snippet here : https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/article.html
-
-## NEVER HARD-CODE HREF URLS
-
-```html
-<a class="navbar-brand mr-4" href="/">Django Blog</a>
-<a class="nav-item nav-link" href="/">Home</a>
-<a class="nav-item nav-link" href="/about">About</a>
-```
-
-Recall `blog/urls.py`
-
-```py
-from django.urls import path
-from . import views
-
-urlpatterns = [
-    path('', views.home, name='blog-home'),
-    path('about/', views.about, name='blog-about'),
-]
-```
-
-We will use the `name` instead of **hard-code urls**.
-
-```html
-<a class="navbar-brand mr-4" href="{% url 'blog-home' %}">Django Blog</a>
-<a class="nav-item nav-link" href="{% url 'blog-home' %}">Home</a>
-<a class="nav-item nav-link" href="{% url 'blog-about' %}">About</a>
-```
+![Add User](./readme_assets/add_user.png)
