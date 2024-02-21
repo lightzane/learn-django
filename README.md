@@ -1,60 +1,8 @@
-# 02 - Applications and Routes
+# 03 - Templates
 
-https://www.youtube.com/watch?v=a48xeeo5Vnk&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
+https://www.youtube.com/watch?v=qDwdMDQ8oX4&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
 
-**A project can have multiple apps**
-
-## Create Blog App
-
-Make sure you are in the same directory with the `manage.py`
-
-To create our blog app, we need this command:
-
-### Start App Command
-
-```bash
-python manage.py startapp <app_name>
-```
-
-Actual:
-
-```bash
-python manage.py startapp blog
-```
-
-#### Start App Command Output
-
-This should now create the following tree structure:
-
-```txt
-./
-├─  proj_name/
-│     ├─  blog/
-│     │     ├─  migrations/
-│     │     │     └─  __init__.py
-│     │     ├─  __init__.py
-│     │     ├─  admin.py
-│     │     ├─  apps.py
-│     │     ├─  models.py
-│     │     ├─  tests.py
-│     │     └─  views.py
-│     └─  proj_name/
-```
-
-## Adding and mapping a route
-
-### Edit Views
-
-`views.py` Initial
-
-```py
-from django.shortcuts import render
-
-# Create your views here.
-
-```
-
-Define a `home()` function where we will handle the routes
+`blog/views.py`
 
 ```py
 from django.shortcuts import render
@@ -63,71 +11,339 @@ from django.http import HttpResponse
 # Create your views here.
 def home(request):
     return HttpResponse('<h1>Blog Home</h1>')
+
+def about(request):
+    return HttpResponse('<h1>Blog About</h1>')
 ```
 
-Next we need to create `urls.py` to map the URL pattern to access this `home()` view function
+Instead of having a hard-code HTML content, let's create **templates**.
 
-### Create `urls.py` to map url for `home()` view function
+## Create Templates
 
-`blog/urls.py`
+Create a directory `templates` under `blog`. By default, **Django** looks into a _templates_ subdirectory and inside into each of our `INSTALLED_APPS` (see `settings.py`).
+
+Django looks onto this convention:
+
+```txt
+<app_name> -> templates -> <app_name> -> *.html
+blog -> templates -> blog -> template.html
+```
+
+So let's create another `blog` folder inside the _templates_ subdirectory
+
+```txt
+proj_name/
+  └─  blog/
+       └─  templates/
+             └─  blog/
+                  ├─  about.html
+                  └─  home.html
+```
+
+`home.html`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home</title>
+  </head>
+  <body>
+    <h1>Blog Home</h1>
+  </body>
+</html>
+```
+
+## Add Blog AppConfig in Project Settings
+
+We have `blog/apps.py`, copy its **Class** name, in this case `BlogConfig` and add it into our **Project settings** located in `proj_name/settings.py`
 
 ```py
-from django.urls import path
-from . import views
+from django.apps import AppConfig
 
-urlpatterns = [
-    path('', views.home, name='blog-home')
-]
+
+class BlogConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'blog'
 ```
 
-This wouldn't work just yet. We need to update our main `urls.py` for the entire project.
-
-### Update main `urls.py` in our project
-
-`proj_name/urls.py`
+`proj_name/settings.py`
 
 ```diff
- from django.contrib import admin
-+from django.urls import path, include
+ ...
 
- urlpatterns = [
-     path('admin/', admin.site.urls),
-+    path('blog/', include('blog.urls'))
+ # Application definition
+
+ INSTALLED_APPS = [
++    'blog.apps.BlogConfig',
+     'django.contrib.admin',
+     'django.contrib.auth',
+     'django.contrib.contenttypes',
+     'django.contrib.sessions',
+     'django.contrib.messages',
+     'django.contrib.staticfiles',
  ]
+
+ ...
 ```
 
-### Run development server
+## Update `views.py`
+
+```diff
+...
+
+def home(request):
++   return render(request, 'blog/home.html')
+-   return HttpResponse('<h1>Blog Home</h1>')
+
+...
+```
+
+## Run server and verify
 
 ```bash
 python manage.py runserver
 ```
 
-And open in browser `http://localhost:8000`
-
-In terminal, you would now get this output:
-
-```bash
-Not Found: /
-[20/Feb/2024 21:42:37] "GET / HTTP/1.1" 404 2167
-```
-
-Once we add **URL patterns**, then it should no longer display the default development site like it did before.
-
-But we can try to access `http://localhost:8000/blog` instead and get our expected result as we defined in our `views.py`.
+View page source in browser and you'll see this result:
 
 ```html
-<h1>Blog Home</h1>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home</title>
+  </head>
+  <body>
+    <h1>Blog Home</h1>
+  </body>
+</html>
 ```
 
-## Add and map a new route `About`
+> Repeat the same steps for the `About` page
 
-DIY ...
+## Add mock data to Context
 
-Tip:
+The mock data will be accessed via the `key` of the `Context` dict that we'll pass in.
+
+`views.py`
+
+```diff
+ from django.shortcuts import render
+
++posts = [
++    {
++        'author': 'Lightzane',
++        'title': 'Blog Post 1',
++        'content': 'First post content',
++        'date_posted': 'Feb 21, 2024'
++    },
++    {
++        'author': 'Lightzane',
++        'title': 'Blog Post 2',
++        'content': 'Second post content',
++        'date_posted': 'Feb 22, 2024'
++    },
++]
+
+ # Create your views here.
+ def home(request):
++    context = {
++        'posts': posts
++    }
++    return render(request, 'blog/home.html', context)
+-    return render(request, 'blog/home.html')
+
+...
+```
+
+## Access the data in template via code block
+
+Django is using a template engine, and to use a code block in html, we will use the following syntax: `{% ... %}`
+
+### Loop code block
+
+`blog/home.html`
+
+```diff
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home</title>
+  </head>
+
+  <body>
++   {% for post in posts %}
++       <h1>{{ post.title }}</h1>
++       <p>By {{ post.author }} on {{ post.date_posted }}</p>
++       <p>{{ post.content }}</p>
++   {% endfor %}
+  </body>
+</html>
+
+```
+
+### Conditional code block
+
+`home.html`
+
+```diff
+ <head>
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    {% if title %}
++        <title>Django Blog - {{ title }}</title>
++    {% else %}
++        <title>Django Blog</title>
++    {% endif %}
+-    <title>Home</title>
+ </head>
+```
+
+> Do the same for `about.html`
+
+### Template Inheritance
+
+Apply `DRY` (**D**on't **R**epeat **Y**ourself) and reduce duplicate blocks of codes that we can **REUSE**
+
+Create `blog/base.html`
+
+<!-- prettier-ignore -->
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% if title %}
+        <title>Django Blog - {{ title }}</title>
+    {% else %}
+        <title>Django Blog</title>
+    {% endif %}
+  </head>
+  <body>
+    <!-- 'content' is arbitrary name -->
+    {% block content %}{% endblock %}
+  </body>
+</html>
+```
+
+#### `{% extends "..." %}`
+
+Update `home.html` to extend `base.html`
+
+<!-- prettier-ignore -->
+```html
+{% extends "blog/base.html" %}
+
+<!-- 'content' is defined by the parent we extend -->
+{% block content %}
+    {% for post in posts %}
+        <h1>{{ post.title }}</h1>
+        <p>By {{ post.author }} on {{ post.date_posted }}</p>
+        <p>{{ post.content }}</p>
+    {% endfor %}
+{% endblock content %}
+```
+
+Note that you can also use `{% endblock %}` instead of `{% endblock content %}`. But if you have multiple blocks, you may lose track of which block would end. So it's recommended to use `{ endblock content }`
+
+> Do the same for `About.html`
+
+## Apply Styles
+
+This project uses `Bootstrap 4` (https://getbootstrap.com/docs/4.0/getting-started/introduction/#starter-template)
+
+`base.html`
+
+<!-- prettier-ignore -->
+```diff
+<!DOCTYPE html>
+<html lang="en">
+  <head>
++    <!-- Required meta tags -->
++    <meta charset="utf-8">
++    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
++
++    <!-- Bootstrap CSS -->
++    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    {% if title %}
+        <title>Django Blog - {{ title }}</title>
+    {% else %}
+        <title>Django Blog</title>
+    {% endif %}
+
++   <!-- Optional JavaScript -->
++   <!-- jQuery first, then Popper.js, then Bootstrap JS -->
++   <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
++   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
++   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+  </head>
+  <body>
++   <div class="container">
+      <!-- 'content' is arbitrary name -->
+      {% block content %}{% endblock %}
++   </div>
+  </body>
+</html>
+```
+
+**Snippets** (https://github.com/CoreyMSchafer/code_snippets/tree/master/Django_Blog/snippets)
+
+Copy `navigation.html` snippet here: https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/navigation.html
+
+Copy `main.html` snippet here: https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/main.html
+
+## Create `static` directory for CSS and Javascript
+
+Django reads static files from this subdirectory: `<app>/static/<app>`
+
+`blog/static/blog/main.css`
+
+Copy snippet here: https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/main.css
+
+## Tell Django to load static files
+
+`base.html`
+
+```diff
++{% load static %}
+ <!DOCTYPE html>
+ <html lang="en">
+   <head>
+     <!-- Required meta tags -->
+     <meta charset="utf-8">
+
+     ...
+```
+
+## Import the static `css` file
+
+```html
+<link rel="stylesheet" type="text/css" href="{% static 'blog/main.css' %}" />
+```
+
+The `static` creates an absolute URL of the static files and accesses that `blog/static/blog/main.css`.
+
+**Replace current html inside loop code block in `home.html` with article snippet**
+Copy `article.html` snippet here : https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/article.html
+
+## NEVER HARD-CODE HREF URLS
+
+```html
+<a class="navbar-brand mr-4" href="/">Django Blog</a>
+<a class="nav-item nav-link" href="/">Home</a>
+<a class="nav-item nav-link" href="/about">About</a>
+```
+
+Recall `blog/urls.py`
 
 ```py
-# blog/urls.py
-
 from django.urls import path
 from . import views
 
@@ -137,21 +353,10 @@ urlpatterns = [
 ]
 ```
 
-### Why add a trailing slash `/`?
+We will use the `name` instead of **hard-code urls**.
 
-By default, if it has a trailing slash, then **Django** will redirect routes without a forward or trailing slash to that route that has one,
-
-## Make blog app a homepage
-
-```diff
-# proj_name/urls.py
- from django.contrib import admin
- from django.urls import path, include
-
- urlpatterns = [
-     path('admin/', admin.site.urls),
-+    path('', include('blog.urls'))
- ]
+```html
+<a class="navbar-brand mr-4" href="{% url 'blog-home' %}">Django Blog</a>
+<a class="nav-item nav-link" href="{% url 'blog-home' %}">Home</a>
+<a class="nav-item nav-link" href="{% url 'blog-about' %}">About</a>
 ```
-
-Make the path empty.
