@@ -1,280 +1,279 @@
-# 05 - Database and Migrations
+# 06 - User Registration
 
-https://www.youtube.com/watch?v=aHC3uTkT9r8&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
+https://www.youtube.com/watch?v=q4jPR-M0TAQ&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
 
-**Django** has a built-in **ORM** (Object Relational Mapping)
+## Create a user app
 
-Python **Class** = Database **Models**
+```bash
+python manage.py startapp users
+```
 
-We're going to use `SQLite` which is built-in in Django as well.
+## Update `settings.py`
 
-> Django, a high-level web framework for Python, includes built-in support for using SQLite as a database backend. SQLite is a lightweight, serverless database engine that stores data in a local file. It's a good choice for development and small to medium-sized applications.<br><br>Source: https://medium.com/@codewithbushra/using-sqlite-as-a-database-backend-in-django-projects-code-with-bushra-d23e3100686e#:~:text=Django%2C%20a%20high%2Dlevel%20web,small%20to%20medium%2Dsized%20applications.
+Install `users` app based on `AppConfig` in `users/apps.py`
 
-## Open `models.py` in blog app
+```diff
+ ...
+
+ INSTALLED_APPS = [
++    'users.apps.UsersConfig',
+     'blog.apps.BlogConfig',
+     ...
+ ]
+
+ ...
+```
+
+## Update `views.py`
+
+### Create Registration form
+
+We can make our own **HTML** template but **Django** also already provided a **registration template** that we can use.
 
 ```py
-from django.db import models
-
-# Create your models here.
-
+from django.contrib.auth.forms import UserCreationForm
 ```
 
-## Create Post model
-
-```py
-from django.db import models
-from django.utils import timezone
-from django.contrib.auth.models import User
-
-# Create your models here.
-class Post(models.Model):
-    title = models.CharField(max_length=100)
-    content = models.TextField()
-    date_posted = models.DateTimeField(default=timezone.now)
-    author = models.ForeignKey(User, on_delete=models.CASCADE) # 'cascade' <- if user is deleted, we want to delete their posts as well
-
-    f""" Note
-    For DateTimeField arguments:
-        - auto_now      (bool) = allows to get current time on EVERY UPDATE
-        - auto_now_add  (bool) = allows to get current time on CREATE but DISABLES modification
-    """
-
-```
-
-## Run `makemigrations` command
-
-Since we made changes in our database model, we need to call the `makemigration` command to detect those changes.
-
-```bash
-python manage.py makemigrations
-```
-
-**RESULT**
-
-```bash
-Migrations for 'blog':
-  blog\migrations\0001_initial.py
-    - Create model Post
-```
-
-If you're curious, you can open `blog/migraiton/0001_initial.py`. This is what **migrations** will execute to create this model.
-
-### Viewing the SQL code
-
-We can view the SQL command that will be executed by the `0001_initial.py`
-
-`python manage.py sqlmigrate <app_name> <migration_number>`
-
-```bash
-python manage.py sqlmigrate blog 0001
-```
-
-**RESULT**
-
-```bash
-BEGIN;
---
--- Create model Post
---
-CREATE TABLE "blog_post" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "title" varchar(100) NOT NULL, "content" text
-NOT NULL, "date_posted" datetime NOT NULL, "author_id" integer NOT NULL REFERENCES "auth_user" ("id") DEFERRABLE INITIALLY DEFERRED);
-CREATE INDEX "blog_post_author_id_dd7a8485" ON "blog_post" ("author_id");
-COMMIT;
-```
-
-## Apply `migrate` changes
-
-```bash
-python manage.py migrate
-```
-
-**RESULT**
-
-```bash
-Operations to perform:
-  Apply all migrations: admin, auth, blog, contenttypes, sessions
-Running migrations:
-  Applying blog.0001_initial... OK
-```
-
-## Query database models using Django Python Shell
-
-We can use the **Django Python Shell** which allows us to work with the models interactively line by line
-
-```bash
-python manage.py shell
-```
-
-**RESULT**
-
-```bash
-Python 3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)] on win32
-Type "help", "copyright", "credits" or "license" for more information.
-(InteractiveConsole)
->>>
-```
-
-### Make few interactions
-
-```bash
->>> from blog.models import Post
->>> from django.contrib.auth.models import User
->>> User.objects.all()
-<QuerySet [<User: lightzane>, <User: qa_tester>]>
->>> User.objects.first()
-<User: lightzane>
->>> User.objects.filter(username='qa_tester')
-<QuerySet [<User: qa_tester>]>
->>> User.objects.filter(username='qa_tester').first()
-<User: qa_tester>
->>> user = User.objects.filter(username='lightzane').first()
->>> user.id
-1
->>> user.pk
-1
->>> user = User.objects.get(id=1)
->>> user
-<User: lightzane>
->>> Post.objects.all()
-<QuerySet []>
->>> post_1 = Post(title='Blog 1', content='First post content!', author=user)
->>> Post.objects.all()
-<QuerySet []>
->>> post_1.save()
->>> Post.objects.all()
-<QuerySet [<Post: Post object (1)>]>
-```
-
-**NOTICE** that the output is `Post object (1)`, let's modify this by adding a `__str__` dunder in our `Post` class.
-
-#### Update `models.py` dunder
-
-`Dunder` = **d**ouble **under**score
-
-```py
-class Post(models.Model):
-
-    ...
-
-    def __str__(self) -> str:
-        return self.title
-```
-
-#### Restart shell
-
-To restart, you can use the command `quit()` or `exit()`
-
-```bash
-python manage.py shell
-```
-
-```bash
-Python 3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)] on win32
-Type "help", "copyright", "credits" or "license" for more information.
-(InteractiveConsole)
->>> from blog.models import Post
->>> from django.contrib.auth.models import User
->>> Post.objects.all()
-<QuerySet [<Post: Blog 1>]>
->>>
-```
-
-#### Add another post
-
-```bash
->>> user = User.objects.filter(username='lightzane').first()
->>> user
-<User: lightzane>
->>> post_2 = Post(title='Blog 2', content='Second post content', author_id=user.id)
->>> post_2.save()
->>> Post.objects.all()
-<QuerySet [<Post: Blog 1>, <Post: Blog 2>]>
-```
-
-##### Inspect a Post data
-
-```bash
->>> post = Post.objects.first()
->>> post.content
-'First post content!'
->>> post.date_posted
-datetime.datetime(2024, 2, 21, 12, 33, 2, 44967, tzinfo=datetime.timezone.utc)
->>> post.author
-<User: lightzane>
->>> post.author.email
-'lightzane@email.com'
-```
-
-#### Get all posts from a specific user
-
-```bash
->>> user.post_set
-<django.db.models.fields.related_descriptors.create_reverse_many_to_one_manager.<locals>.RelatedManager object at 0x0000024587D62FF0>
->>> user.post_set.all()
-<QuerySet [<Post: Blog 1>, <Post: Blog 2>]>
-```
-
-#### Create another post directly using the `post_set.create()`
-
-```bash
->>> user.post_set.create(title='Blog 3', content='Third post content!')
-<Post: Blog 3>
->>> Post.objects.all()
-<QuerySet [<Post: Blog 1>, <Post: Blog 2>, <Post: Blog 3>]>
-```
-
-Notice that we don't have to specify the `author` in this approach, since **Django** already knows the author that we stored in the `user` variable
-
-## Use DB data instead of mock data
-
-`blog/views.py`
+`users/views.py`
 
 ```py
 from django.shortcuts import render
-from .models import Post
+from django.contrib.auth.forms import UserCreationForm
 
-def home(request):
-    context = {
-        'posts': Post.objects.all()
-    }
-    return render(request, 'blog/home.html', context)
+def register(request):
+    form = UserCreationForm()
+    return render(request, 'users/register.html', {
+        'form': form
+    })
 
 ```
 
-## Update template to change formatting of Dates
+## Create HTML template
 
-**Documentation of Django Date formats:**<br>
-https://docs.djangoproject.com/en/5.0/ref/templates/builtins/#date
+`users/template/users/register.html`
+
+<!-- prettier-ignore -->
+```html
+{% extends "blog/base.html" %}
+
+{% block content %}
+    <div class="content-section">
+        <form method="post">
+            {% csrf_token %}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Join Today</legend>
+                {{ form }}
+            </fieldset>
+            <div class="form-group">
+                <button class="btn btn-outline-info" type="submit">Sign Up</button>
+            </div>
+        </form>
+
+        <div class="border-top pt-3">
+            <small class="text-muted">
+                Already Have An Account? <a class="ml-2" href="#">Sign In</a>
+            </small>
+        </div>
+    </div>
+{% endblock content %}
+```
+
+## Create Route for Register HTML
+
+You may think of adding URL to `users/urls.py` but we can also do another approach to _directly_ put the **users router** in the `proj_name/urls.py`
+
+```diff
+ from django.contrib import admin
+ from django.urls import path, include
++from users import views as user_views
+
+ urlpatterns = [
+     path('admin/', admin.site.urls),
++    path('register/', user_views.register, name='register'),
+     path('', include('blog.urls'))
+ ]
+```
+
+## Run server and verify
+
+![Register Page](./readme_assets/register_page.png)
+
+## Render form in paragraph text
+
+Update `register.html`
 
 ```html
-<small class="text-muted">{{ post.date_posted | date:"F d, Y" }}</small>
+{{ form.as_p }}
 ```
 
-**Strictly no spaces between the `date:` and `"`!**<br>(e.g. `post.date_posted | date: "F d, Y"` - this will throw an error that template cannot be parsed)
+![Register Page Form As P](./readme_assets/register_page_form_as_p.png)
 
-## Register Models in Admin page
+## Update Registration logic
 
-Go to `blog/admins.py`
+`users/views.py`
 
 ```py
-from django.contrib import admin
+from django.shortcuts import render, redirect
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib import messages
+from django.http import HttpRequest # for typings
 
-# Register your models here.
+def register(request: HttpRequest):
+
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            messages.success(request, f'Account created for {username}!') # F-strings from Python 3.6+
+            return redirect('blog-home') # url pattern for our Blog home page
+
+    else:
+        form = UserCreationForm()
+
+    return render(request, 'users/register.html', {
+        'form': form
+    })
 
 ```
 
-Update it to register the `Post` class/model
+## Pass success message in `base.html`
+
+```diff
+<!-- * M A I N * -->
+<main role="main" class="container">
+  <div class="row">
+    <div class="col-md-8">
++     {% if messages %}
++       {% for message in messages %}
++         <div class="alert alert-{{ message.tags }}">
++           {{ message }}
++         </div>
++       {% endfor %}
++     {% endif %}
+      <!-- 'content' is arbitrary name -->
+      {% block content %}{% endblock %}
+    </div>
+```
+
+## Test submitting register
+
+![Register New User](./readme_assets/register_new_user.png)
+
+## Save form in database
+
+`users/views.py`
+
+```diff
+...
+
+ if form.is_valid():
++   form.save() # save to database
+    username = form.cleaned_data.get('username')
+
+...
+```
+
+## Adding more fields in form
+
+Create `users/forms.py` file
 
 ```py
-from django.contrib import admin
-from .models import Post
+from django import forms
+from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
 
-# Register your models here.
-admin.site.register(Post)
+class UserRegistrationForm(UserCreationForm):
+    email = forms.EmailField()
+
+    class Meta: # Gives us a nested namespace
+        model = User # It will save it into this user model
+        fields = ['username', 'email', 'password1', 'password2'] # Set fields in order
+
 ```
 
-It should now display `Post` in the admin page.
+## Inherift the form we created in `users/views.py`
 
-![Admin Page Registers Post](./readme_assets/admin_page_register_post.png)
+```diff
+ from django.shortcuts import render, redirect
+-from django.contrib.auth.forms import UserCreationForm
+ from django.contrib import messages
+ from django.http import HttpRequest # for typings
++from .forms import UserRegistrationForm
 
-![Admin Page Blog Post Add](./readme_assets/admin_page_blog_post_add.png)
+ def register(request: HttpRequest):
+
+     if request.method == 'POST':
+-        form = UserCreationForm(request.POST)
++        form = UserRegistrationForm(request.POST)
+
+         if form.is_valid():
+             form.save() # save to database
+             username = form.cleaned_data.get('username')
+             messages.success(request, f'Account created for {username}!') # F-strings from Python 3.6+
+             return redirect('blog-home') # url pattern for our Blog home page
+         # * Remember to pass the success message (i.e. in `base.html` template)
+
+     else:
+-        form = UserCreationForm()
++        form = UserRegistrationForm()
+
+     return render(request, 'users/register.html', {
+         'form': form
+     })
+
+```
+
+Run server and see the updated registration form:
+
+![Register Form with Email](./readme_assets/register_page_with_email.png)
+
+## Style Forms
+
+We want to put styles only on templates.
+
+### Install `django-crispy-forms`
+
+Popular way to do this in Django is **Crispy Forms**
+
+```bash
+pip install django-crispy-forms
+pip install crispy-bootstrap4
+```
+
+Reference: https://django-crispy-forms.readthedocs.io/en/latest/install.html#installation
+
+### Add to `INSTALLED_APPS`
+
+`settings.py`
+
+```diff
+ INSTALLED_APPS = [
+     ...
++   'crispy_forms',
++   'crispy_bootstrap4',
+     ...
+ ]
+
+ ...
+
++CRISPY_TEMPLATE_PACK = "bootstrap4" # check documentation for django-crispy-forms
+```
+
+### Load crispy forms in `register.html`
+
+```diff
+ {% extends "blog/base.html" %}
++{% load crispy_forms_tags %}
+ {% block content %}
+```
+
+We can now remove `.as_p` in `{{ form.as_p }}` and replaced with:
+
+```html
+{{ form | cripsy }}
+```
+
+#### Run server and see updated registration form
+
+![Register Style Crispy Form](./readme_assets/register_style_crispy_form.png)
