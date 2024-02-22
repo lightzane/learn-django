@@ -1,279 +1,241 @@
-# 06 - User Registration
+# 07 - Login and Logout System
 
-https://www.youtube.com/watch?v=q4jPR-M0TAQ&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
+https://www.youtube.com/watch?v=3aVqWaLjqS4&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
 
-## Create a user app
+## Create Login/Logout View Built-in from Django
 
-```bash
-python manage.py startapp users
-```
-
-## Update `settings.py`
-
-Install `users` app based on `AppConfig` in `users/apps.py`
+`proj_name/urls.py`
 
 ```diff
- ...
+ from django.contrib import admin
++from django.contrib.auth import views as auth_views
+ from django.urls import path, include
+ from users import views as user_views
 
- INSTALLED_APPS = [
-+    'users.apps.UsersConfig',
-     'blog.apps.BlogConfig',
-     ...
+ urlpatterns = [
+     path('admin/', admin.site.urls),
+     path('register/', user_views.register, name='register'),
++    path('login/', auth_views.LoginView.as_view(), name='login'),
++    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+     path('', include('blog.urls'))
  ]
 
- ...
 ```
 
-## Update `views.py`
+If you try run the server and visit `http://localhost:8000/login`, you would get this error:
 
-### Create Registration form
+![Login Missing Template Error](./readme_assets/login_missing_template_error.png)
 
-We can make our own **HTML** template but **Django** also already provided a **registration template** that we can use.
+### Specify template name for login and logout
+
+By default, it is looking for the `registration/login.html`.
+
+We can create our own template and tell **Django** to use it instead.
+
+`proj_name/urls.py`
 
 ```py
-from django.contrib.auth.forms import UserCreationForm
+path('login/',
+    auth_views.LoginView.as_view(template_name='users/login.html'),
+    name='login'
+),
+path('logout/',
+    auth_views.LogoutView.as_view(template_name='users/logout.html'),
+    name='logout'
+),
 ```
 
-`users/views.py`
+This will still give an error but it should show now that it is looking for the `users/login.html` template.
 
-```py
-from django.shortcuts import render
-from django.contrib.auth.forms import UserCreationForm
+### Create Login template
 
-def register(request):
-    form = UserCreationForm()
-    return render(request, 'users/register.html', {
-        'form': form
-    })
-
-```
-
-## Create HTML template
-
-`users/template/users/register.html`
+`users/login.html`
 
 <!-- prettier-ignore -->
 ```html
 {% extends "blog/base.html" %}
-
+{% load crispy_forms_tags %}
 {% block content %}
     <div class="content-section">
         <form method="post">
             {% csrf_token %}
             <fieldset class="form-group">
-                <legend class="border-bottom mb-4">Join Today</legend>
-                {{ form }}
+                <legend class="border-bottom mb-4">Log In</legend>
+                {{ form | crispy }}
             </fieldset>
             <div class="form-group">
-                <button class="btn btn-outline-info" type="submit">Sign Up</button>
+                <button class="btn btn-outline-info" type="submit">Login</button>
             </div>
         </form>
 
         <div class="border-top pt-3">
             <small class="text-muted">
-                Already Have An Account? <a class="ml-2" href="#">Sign In</a>
+                Need an Account? <a class="ml-2" href="{% url 'register' %}">Sign Up Now</a>
             </small>
         </div>
     </div>
 {% endblock content %}
 ```
 
-## Create Route for Register HTML
-
-You may think of adding URL to `users/urls.py` but we can also do another approach to _directly_ put the **users router** in the `proj_name/urls.py`
-
-```diff
- from django.contrib import admin
- from django.urls import path, include
-+from users import views as user_views
-
- urlpatterns = [
-     path('admin/', admin.site.urls),
-+    path('register/', user_views.register, name='register'),
-     path('', include('blog.urls'))
- ]
-```
-
-## Run server and verify
-
-![Register Page](./readme_assets/register_page.png)
-
-## Render form in paragraph text
-
-Update `register.html`
+Update the `href` in `register.html` to include the URL for login
 
 ```html
-{{ form.as_p }}
+Need an Account? <a class="ml-2" href="{% url 'register' %}">Sign Up Now</a>
 ```
 
-![Register Page Form As P](./readme_assets/register_page_form_as_p.png)
+When you try to login with valid user, it will give **page not found** for `http://localhost:8000/accounts/profile/`
 
-## Update Registration logic
+### Modify login redirect in settings
 
-`users/views.py`
+By default, **Django** will redirect to `/accounts/profile` location. We can change this in `settings.py`
 
 ```py
-from django.shortcuts import render, redirect
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib import messages
-from django.http import HttpRequest # for typings
+LOGIN_REDIRECT_URL = 'blog-home' # name of the path we gave in blog homepage
+```
 
+#### Update the register view and redirect to login page instead
+
+```diff
+...
 def register(request: HttpRequest):
 
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = UserRegistrationForm(request.POST)
 
         if form.is_valid():
+            form.save() # save to database
             username = form.cleaned_data.get('username')
-            messages.success(request, f'Account created for {username}!') # F-strings from Python 3.6+
-            return redirect('blog-home') # url pattern for our Blog home page
++           messages.success(request, f'Account created for {username}! Please login') # F-strings from Python 3.6+
++           return redirect('login') # name of the path we gave for /login
 
-    else:
-        form = UserCreationForm()
-
-    return render(request, 'users/register.html', {
-        'form': form
-    })
-
+        ...
+    ...
 ```
 
-## Pass success message in `base.html`
+### Create logout template
+
+<!-- prettier-ignore -->
+```html
+{% extends "blog/base.html" %}
+
+{% block content %}
+    <h2>You have been logged out</h2>
+    <div class="border-top pt-3">
+        <small class="text-muted">
+            <a class="ml-2" href="{% url 'login' %}">Login again</a>
+        </small>
+    </div>
+{% endblock content %}
+```
+
+#### Test `/logout`
+
+You may get an error somewhere in terminal:
+
+```bash
+[22/Feb/2024 10:49:32] "GET /logout/ HTTP/1.1" 405 0
+Method Not Allowed (GET): /logout/
+Method Not Allowed: /logout/
+```
+
+> Since Django v5, you need to logout through a **POST Request**, since it has side-effects.<br>Source: https://stackoverflow.com/questions/77690729/django-built-in-logout-view-method-not-allowed-get-users-logout
+
+**Example**
+
+```html
+<form method="post" action="{% url 'logout' %}">
+  {% csrf_token %}
+  <button type="submit">logout</button>
+</form>
+```
+
+`csrf` = cross-site request forgery (CSRF) ^[wiki](https://en.wikipedia.org/wiki/Cross-site_request_forgery)
+
+### Update `base.html` template to navigate login and register
+
+```html
+<a class="nav-item nav-link" href="{% url 'login' %}">Login</a>
+<a class="nav-item nav-link" href="{% url 'register' %}">Register</a>
+```
+
+We only want to display **Login** and **Register** _when the user is NOT logged in_.
+
+<!-- prettier-ignore -->
+```html
+<!-- The `user` variable is provided by **Django** -->
+{% if user.is_authenticated %}
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit">logout</button>
+    </form>
+{% else %}
+    <a class="nav-item nav-link" href="{% url 'login' %}">Login</a>
+    <a class="nav-item nav-link" href="{% url 'register' %}">Register</a>
+{% endif %}
+```
+
+**You can now run server and test `login` and `logout` feature**
+
+## Create User Profile view
+
+Users' `views.py`
+
+```py
+def profile(request):
+    return render(request, 'users/profile.html')
+```
+
+`profile.html` template
+
+```html
+{% extends "blog/base.html" %} {% load crispy_forms_tags %} {% block content %}
+<!-- `user` variable is built-in within Django -->
+<h1>{{ user.username }}</h1>
+{% endblock content %}
+```
+
+Update `urls.py` for project
+
+```py
+path('profile/', user_views.profile, name='profile'),
+```
+
+Add link to profile in `base.html`
 
 ```diff
-<!-- * M A I N * -->
-<main role="main" class="container">
-  <div class="row">
-    <div class="col-md-8">
-+     {% if messages %}
-+       {% for message in messages %}
-+         <div class="alert alert-{{ message.tags }}">
-+           {{ message }}
-+         </div>
-+       {% endfor %}
-+     {% endif %}
-      <!-- 'content' is arbitrary name -->
-      {% block content %}{% endblock %}
-    </div>
+{% if user.is_authenticated %}
++   <a class="nav-item nav-link" href="{% url 'profile' %}">Profile</a>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="btn btn-dark" type="submit">Logout</button>
+    </form>
+{% else %}
 ```
 
-## Test submitting register
+## `@login_required` decorator to restrict pages
 
-![Register New User](./readme_assets/register_new_user.png)
-
-## Save form in database
+Currently, anyone can access the `/profile` URL even when the user is NOT logged in.
 
 `users/views.py`
 
 ```diff
-...
-
- if form.is_valid():
-+   form.save() # save to database
-    username = form.cleaned_data.get('username')
-
-...
-```
-
-## Adding more fields in form
-
-Create `users/forms.py` file
-
-```py
-from django import forms
-from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
-
-class UserRegistrationForm(UserCreationForm):
-    email = forms.EmailField()
-
-    class Meta: # Gives us a nested namespace
-        model = User # It will save it into this user model
-        fields = ['username', 'email', 'password1', 'password2'] # Set fields in order
-
-```
-
-## Inherift the form we created in `users/views.py`
-
-```diff
- from django.shortcuts import render, redirect
--from django.contrib.auth.forms import UserCreationForm
- from django.contrib import messages
- from django.http import HttpRequest # for typings
-+from .forms import UserRegistrationForm
-
- def register(request: HttpRequest):
-
-     if request.method == 'POST':
--        form = UserCreationForm(request.POST)
-+        form = UserRegistrationForm(request.POST)
-
-         if form.is_valid():
-             form.save() # save to database
-             username = form.cleaned_data.get('username')
-             messages.success(request, f'Account created for {username}!') # F-strings from Python 3.6+
-             return redirect('blog-home') # url pattern for our Blog home page
-         # * Remember to pass the success message (i.e. in `base.html` template)
-
-     else:
--        form = UserCreationForm()
-+        form = UserRegistrationForm()
-
-     return render(request, 'users/register.html', {
-         'form': form
-     })
-
-```
-
-Run server and see the updated registration form:
-
-![Register Form with Email](./readme_assets/register_page_with_email.png)
-
-## Style Forms
-
-We want to put styles only on templates.
-
-### Install `django-crispy-forms`
-
-Popular way to do this in Django is **Crispy Forms**
-
-```bash
-pip install django-crispy-forms
-pip install crispy-bootstrap4
-```
-
-Reference: https://django-crispy-forms.readthedocs.io/en/latest/install.html#installation
-
-### Add to `INSTALLED_APPS`
-
-`settings.py`
-
-```diff
- INSTALLED_APPS = [
-     ...
-+   'crispy_forms',
-+   'crispy_bootstrap4',
-     ...
- ]
++from django.contrib.auth.decorators import login_required
 
  ...
 
-+CRISPY_TEMPLATE_PACK = "bootstrap4" # check documentation for django-crispy-forms
++@login_required
+ def profile(request):
+     return render(request, 'users/profile.html')
 ```
 
-### Load crispy forms in `register.html`
+### Add fallback page for `@login_required`
 
-```diff
- {% extends "blog/base.html" %}
-+{% load crispy_forms_tags %}
- {% block content %}
+Now, if you access the `/profile`, it will throw a `404 page not found` page. We can change this by adding the following in `settings.py`:
+
+```py
+LOGIN_URL = 'login' # name of path we gave for login page
 ```
 
-We can now remove `.as_p` in `{{ form.as_p }}` and replaced with:
+Now if you access `/profile`, it will redirect to `/login/?next=/profile/` location instead.
 
-```html
-{{ form | cripsy }}
-```
-
-#### Run server and see updated registration form
-
-![Register Style Crispy Form](./readme_assets/register_style_crispy_form.png)
+And when you logged in, it will redirect us back the the `/profile` page instead of our default redirect to the _blog-home_ page.

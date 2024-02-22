@@ -2,6 +2,8 @@
 
 <!-- 'content' is defined by the parent we extend -->
 {% block content %}
+    {{ user }}
+    
     {% for post in posts %}
         <!-- <h1>{{ post.title }}</h1>
         <p>By {{ post.author }} on {{ post.date_posted }}</p>

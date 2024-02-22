@@ -162,3 +162,7 @@ cython_debug/
 # System files
 .DS_Store
 Thumbs.db
+
+# Uploaded files
+
+media/

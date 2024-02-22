@@ -127,3 +127,6 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CRISPY_TEMPLATE_PACK = "bootstrap4" # check documentation for django-crispy-forms
+
+LOGIN_REDIRECT_URL = 'blog-home' # name of the path we gave in blog homepage
+LOGIN_URL = 'login' # name of path we gave for login page
