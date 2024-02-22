@@ -1,238 +1,165 @@
-# 08 - User Profile and Picture
+# 09 - Update User Profile
 
-https://www.youtube.com/watch?v=FdVuKt_iuSI&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
+https://www.youtube.com/watch?v=CQ90L5jfldw&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
 
-## Create custom User model
+## Create additional forms for user update
 
-Extend the built-in User model from Django
-
-`users/models.py`
+`users/forms.py`
 
 ```py
-from django.db import models
-from django.contrib.auth.models import User
-
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    image = models.ImageField(default='default.jpeg', upload_to='profile_pics') # upload to `profile_pics/` directory
-
-    def __str__(self) -> str:
-        return f'{self.user.username} Profile'
-```
-
-## Make Migrations
-
-Since we did database model changes, we need to make migrations.
-
-```bash
-python manage.py makemigrations
-```
-
-**Output**
-
-```bash
-SystemCheckError: System check identified some issues:
-
-ERRORS:
-users.Profile.image: (fields.E210) Cannot use ImageField because Pillow is not installed.
-        HINT: Get Pillow at https://pypi.org/project/Pillow/ or run command "python -m pip install Pillow".
-```
-
-`Pillow` is a library for working on images with Python
-
-### Install Pillow
-
-```bash
-pip install pillow
-```
-
-Rerun the `makemigrations` command
-
-**Output**
-
-```bash
-Migrations for 'users':
-  users\migrations\0001_initial.py
-    - Create model Profile
-```
-
-## Apply Migrations
-
-```bash
-python manage.py migrate
-```
-
-**Output**
-
-```bash
-Operations to perform:
-  Apply all migrations: admin, auth, blog, contenttypes, sessions, users
-Running migrations:
-  Applying users.0001_initial... OK
-```
-
-## Register model for Admin page
-
-`users/admin.py`
-
-```py
-from django.contrib import admin
-from .models import User
-
-# Register your models here.
-admin.site.register(User)
-
-```
-
-Run the server and check **Admin** page and see the `Profile` added under `Users` section.
-
-**Add Profile** then exercise query in the `python manage.py shell`
-
-```bash
-(InteractiveConsole)
->>> from django.contrib.auth.models import User
->>> user = User.objects.filter(username='lightzane').first()
->>> user
-<User: lightzane>
->>> user.profile
-<Profile: lightzane Profile>
->>> user.profile.image
-<ImageFieldFile: profile_pics/lightzane.png>
->>> user.profile.image.width
-420
->>> user.profile.image.url
-'/profile_pics/lightzane.png'
-```
-
-### Set image upload location
-
-Currently, we set the image to be uploaded in the `/profile_pics/` path. But if there are multiple users, it will clutter in the project directory - or users app directory.
-
-Let's change it on the `settings.py` and add the following keys:
-
-```py
-from pathlib import Path # should already exist in `settings.py`
-
 ...
 
-# Store uploaded files here
-MEDIA_ROOT = Path.joinpath(BASE_DIR, 'media') # directory URL
-MEDIA_URL = '/media/' # public URL
+class UserUpdateForm(forms.ModelForm):
+    email = forms.EmailField()
+
+    class Meta:
+        model = User
+        fields = ['username', 'email']
+
+class ProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Profile
+        fields = ['image']
 ```
 
-This should now create a `profile_pics` directory inside the `media` sub-directory
+## Update views to implement those forms
 
-#### Re-upload image
+`users/views.py`
 
-In admin page, let's delete the profile images. If you notice, it may not delete the actual image file in the directory. Let's manually delete the existing `profile_pics/*.jpg`
+```diff
+ ...
++from .forms import UserRegistrationForm, UserUpdateForm, ProfileUpdateForm
 
-Once you upload, you'll be able to see that it's now stored in the `proj_name/media/profile_pics` directory.
+ @login_required
+ def profile(request):
++    u_form = UserUpdateForm()
++    p_form = ProfileUpdateForm()
 
-> You may want to add `media/` path in `.gitignore`
++    context = {
++        'u_form': u_form,
++        'p_form': p_form
++    }
 
-## Update profile template
+-    return render(request, 'users/profile.html')
++    return render(request, 'users/profile.html', context)
 
-Snippet here: https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/profile.html
+```
 
-`profile.html`
+## Update template to display the form
 
-<!-- prettier-ignore -->
-```html
+`users/templates/users/profile.html`
+
+```diff
 {% extends "blog/base.html" %}
 {% load crispy_forms_tags %}
 {% block content %}
     <!-- `user` variable is built-in within Django -->
     <div class="content-section">
-        <div class="media">
-            <img class="rounded-circle account-img" src="{{ user.profile.image.url }}">
-            <div class="media-body">
-            <h2 class="account-heading">{{ user.username }}</h2>
-            <p class="text-secondary">{{ user.email }}</p>
-            </div>
-        </div>
+        ...
         <!-- FORM HERE -->
++       <form method="post" enctype="multipart/form-data">
++           <!-- multipart/form-data allows it to read uploaded files (image.png) -->
++           {% csrf_token %}
++           <fieldset class="form-group">
++               <legend class="border-bottom mb-4">Profile Info</legend>
++               {{ u_form | crispy }}
++               {{ p_form | crispy }}
++           </fieldset>
++           <div class="form-group">
++               <button class="btn btn-outline-info" type="submit">Update</button>
++           </div>
++       </form>
     </div>
 {% endblock content %}
 ```
 
-> Note that this uploading of files approach is only for Development. **This is not recommended for Production**.
+You can now `runserver` and verify changes in the **UI**.
 
-### Update `urls.py` so we can reference it into templates
+**But do not try submitting anything yet**
 
-Django documentation about serving files uploaded by a user during development:<br>
-https://docs.djangoproject.com/en/5.0/howto/static-files/#serving-files-uploaded-by-a-user-during-development
+![Profile with Update Form](./readme_assets/profile_with_update_form.png)
 
-For example, if your `MEDIA_URL` is defined as `media/`, you can do this by adding the following snippet to your `ROOT_URLCONF`:
+Notice that it does not contain the current values.
 
-**Snippet from the documentation site**
+### Update form with current values
 
-```py
-from django.conf import settings
-from django.conf.urls.static import static
-
-urlpatterns = [
-    # ... the rest of your URLconf goes here ...
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-```
-
-`proj_name/urls.py`
+`views.py`
 
 ```diff
- from django.contrib import admin
- from django.contrib.auth import views as auth_views
- from django.urls import path, include
- from users import views as user_views
+ @login_required
++def profile(request: HttpRequest):
 
-+from django.conf import settings
-+from django.conf.urls.static import static
++    if request.POST:
++        u_form = UserUpdateForm(request.POST, instance=request.user)
++        p_form = ProfileUpdateForm(
++            request.POST,
++            request.FILES,
++            instance=request.user.profile
++        )
++
++        if u_form.is_valid() and p_form.is_valid():
++            u_form.save()
++            p_form.save()
++
++            messages.success(request, f'Your account has been updated!')
++            return redirect('profile') # name of the path url for the profile page
++
++    else:
++        u_form = UserUpdateForm(instance=request.user)
++        p_form = ProfileUpdateForm(instance=request.user.profile)
 
- urlpatterns = [
+     context = {
+         'u_form': u_form,
+         'p_form': p_form
+     }
+
+     return render(request, 'users/profile.html', context)
+```
+
+You can `runserver` and submit your profile updates!
+
+## Resize images to upload
+
+`users/models.py`
+
+```diff
+ ...
+
++from PIL import Image
+
+ class Profile(models.Model):
+
      ...
- ]
 
-+if settings.DEBUG:
-+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
++    # Sample for overriding the models.Model.save()
++    def save(self):
++        super().save()
++
++        img = Image.open(self.image.path)
++
++        if img.height > 300 or img.width > 300:
++            output_size = (300, 300)
++            img.thumbnail(output_size)
++            img.save(self.image.path)
+
 ```
 
-You can now `runserver` and login to `localhost:8000/profile`
+Now try upload large sizes !
 
-Feel free to upload a `default.jpeg` manually in the `/media/` directory.
+## Display image on each user blog posts
 
-## Signals
-
-**Signals** in Django are similar to `events`.
-
-In this scenario, when we register a user, we want to also automatically set the default image for their profile. Since the `user` and `profile` have a `1-1` relationship.
-
-### Create `signals.py` under users subdirectory
-
-```py
-from django.db.models.signals import post_save # signal
-from django.contrib.auth.models import User # sender
-from django.dispatch import receiver # receiver
-from .models import Profile
-
-@receiver(post_save, sender=User)
-def create_profile(sender, instance, created, **kwargs):
-    if created:
-        Profile.objects.create(user=instance)
-
-@receiver(post_save, sender=User)
-def save_profile(sender, instance, **kwargs):
-    instance.profile.save()
-```
-
-### Update `users/apps.py`
+`blog/templates/blog/home.html`
 
 ```diff
-from django.apps import AppConfig
-
-class UsersConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'users'
-
-+   def ready(self) -> None:
-+       import users.signals # import here based on documentation as well to prevent side-effects
+<article class="media content-section">
++   <img class="rounded-circle article-img" src="{{ post.author.profile.image.url }}" />
+    <div class="media-body">
+        <div class="article-metadata">
+        <a class="mr-2" href="#">{{ post.author }}</a>
+        <small class="text-muted">{{ post.date_posted | date:"F d, Y" }}</small>
+        </div>
+        <h2><a class="article-title" href="#">{{ post.title }}</a></h2>
+        <p class="article-content">{{ post.content }}</p>
+    </div>
+</article>
 ```
-
-Now try to `runserver` and register a new user. Then verify that there is a default profile created.
