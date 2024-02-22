@@ -1,241 +1,238 @@
-# 07 - Login and Logout System
+# 08 - User Profile and Picture
 
-https://www.youtube.com/watch?v=3aVqWaLjqS4&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
+https://www.youtube.com/watch?v=FdVuKt_iuSI&list=PL-osiE80TeTtoQCKZ03TU5fNfx2UY6U4p
 
-## Create Login/Logout View Built-in from Django
+## Create custom User model
 
-`proj_name/urls.py`
+Extend the built-in User model from Django
 
-```diff
- from django.contrib import admin
-+from django.contrib.auth import views as auth_views
- from django.urls import path, include
- from users import views as user_views
-
- urlpatterns = [
-     path('admin/', admin.site.urls),
-     path('register/', user_views.register, name='register'),
-+    path('login/', auth_views.LoginView.as_view(), name='login'),
-+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-     path('', include('blog.urls'))
- ]
-
-```
-
-If you try run the server and visit `http://localhost:8000/login`, you would get this error:
-
-![Login Missing Template Error](./readme_assets/login_missing_template_error.png)
-
-### Specify template name for login and logout
-
-By default, it is looking for the `registration/login.html`.
-
-We can create our own template and tell **Django** to use it instead.
-
-`proj_name/urls.py`
+`users/models.py`
 
 ```py
-path('login/',
-    auth_views.LoginView.as_view(template_name='users/login.html'),
-    name='login'
-),
-path('logout/',
-    auth_views.LogoutView.as_view(template_name='users/logout.html'),
-    name='logout'
-),
+from django.db import models
+from django.contrib.auth.models import User
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    image = models.ImageField(default='default.jpeg', upload_to='profile_pics') # upload to `profile_pics/` directory
+
+    def __str__(self) -> str:
+        return f'{self.user.username} Profile'
 ```
 
-This will still give an error but it should show now that it is looking for the `users/login.html` template.
+## Make Migrations
 
-### Create Login template
+Since we did database model changes, we need to make migrations.
 
-`users/login.html`
+```bash
+python manage.py makemigrations
+```
+
+**Output**
+
+```bash
+SystemCheckError: System check identified some issues:
+
+ERRORS:
+users.Profile.image: (fields.E210) Cannot use ImageField because Pillow is not installed.
+        HINT: Get Pillow at https://pypi.org/project/Pillow/ or run command "python -m pip install Pillow".
+```
+
+`Pillow` is a library for working on images with Python
+
+### Install Pillow
+
+```bash
+pip install pillow
+```
+
+Rerun the `makemigrations` command
+
+**Output**
+
+```bash
+Migrations for 'users':
+  users\migrations\0001_initial.py
+    - Create model Profile
+```
+
+## Apply Migrations
+
+```bash
+python manage.py migrate
+```
+
+**Output**
+
+```bash
+Operations to perform:
+  Apply all migrations: admin, auth, blog, contenttypes, sessions, users
+Running migrations:
+  Applying users.0001_initial... OK
+```
+
+## Register model for Admin page
+
+`users/admin.py`
+
+```py
+from django.contrib import admin
+from .models import User
+
+# Register your models here.
+admin.site.register(User)
+
+```
+
+Run the server and check **Admin** page and see the `Profile` added under `Users` section.
+
+**Add Profile** then exercise query in the `python manage.py shell`
+
+```bash
+(InteractiveConsole)
+>>> from django.contrib.auth.models import User
+>>> user = User.objects.filter(username='lightzane').first()
+>>> user
+<User: lightzane>
+>>> user.profile
+<Profile: lightzane Profile>
+>>> user.profile.image
+<ImageFieldFile: profile_pics/lightzane.png>
+>>> user.profile.image.width
+420
+>>> user.profile.image.url
+'/profile_pics/lightzane.png'
+```
+
+### Set image upload location
+
+Currently, we set the image to be uploaded in the `/profile_pics/` path. But if there are multiple users, it will clutter in the project directory - or users app directory.
+
+Let's change it on the `settings.py` and add the following keys:
+
+```py
+from pathlib import Path # should already exist in `settings.py`
+
+...
+
+# Store uploaded files here
+MEDIA_ROOT = Path.joinpath(BASE_DIR, 'media') # directory URL
+MEDIA_URL = '/media/' # public URL
+```
+
+This should now create a `profile_pics` directory inside the `media` sub-directory
+
+#### Re-upload image
+
+In admin page, let's delete the profile images. If you notice, it may not delete the actual image file in the directory. Let's manually delete the existing `profile_pics/*.jpg`
+
+Once you upload, you'll be able to see that it's now stored in the `proj_name/media/profile_pics` directory.
+
+> You may want to add `media/` path in `.gitignore`
+
+## Update profile template
+
+Snippet here: https://github.com/CoreyMSchafer/code_snippets/blob/master/Django_Blog/snippets/profile.html
+
+`profile.html`
 
 <!-- prettier-ignore -->
 ```html
 {% extends "blog/base.html" %}
 {% load crispy_forms_tags %}
 {% block content %}
+    <!-- `user` variable is built-in within Django -->
     <div class="content-section">
-        <form method="post">
-            {% csrf_token %}
-            <fieldset class="form-group">
-                <legend class="border-bottom mb-4">Log In</legend>
-                {{ form | crispy }}
-            </fieldset>
-            <div class="form-group">
-                <button class="btn btn-outline-info" type="submit">Login</button>
+        <div class="media">
+            <img class="rounded-circle account-img" src="{{ user.profile.image.url }}">
+            <div class="media-body">
+            <h2 class="account-heading">{{ user.username }}</h2>
+            <p class="text-secondary">{{ user.email }}</p>
             </div>
-        </form>
-
-        <div class="border-top pt-3">
-            <small class="text-muted">
-                Need an Account? <a class="ml-2" href="{% url 'register' %}">Sign Up Now</a>
-            </small>
         </div>
+        <!-- FORM HERE -->
     </div>
 {% endblock content %}
 ```
 
-Update the `href` in `register.html` to include the URL for login
+> Note that this uploading of files approach is only for Development. **This is not recommended for Production**.
 
-```html
-Need an Account? <a class="ml-2" href="{% url 'register' %}">Sign Up Now</a>
-```
+### Update `urls.py` so we can reference it into templates
 
-When you try to login with valid user, it will give **page not found** for `http://localhost:8000/accounts/profile/`
+Django documentation about serving files uploaded by a user during development:<br>
+https://docs.djangoproject.com/en/5.0/howto/static-files/#serving-files-uploaded-by-a-user-during-development
 
-### Modify login redirect in settings
+For example, if your `MEDIA_URL` is defined as `media/`, you can do this by adding the following snippet to your `ROOT_URLCONF`:
 
-By default, **Django** will redirect to `/accounts/profile` location. We can change this in `settings.py`
+**Snippet from the documentation site**
 
 ```py
-LOGIN_REDIRECT_URL = 'blog-home' # name of the path we gave in blog homepage
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    # ... the rest of your URLconf goes here ...
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 ```
 
-#### Update the register view and redirect to login page instead
+`proj_name/urls.py`
 
 ```diff
-...
-def register(request: HttpRequest):
+ from django.contrib import admin
+ from django.contrib.auth import views as auth_views
+ from django.urls import path, include
+ from users import views as user_views
 
-    if request.method == 'POST':
-        form = UserRegistrationForm(request.POST)
++from django.conf import settings
++from django.conf.urls.static import static
 
-        if form.is_valid():
-            form.save() # save to database
-            username = form.cleaned_data.get('username')
-+           messages.success(request, f'Account created for {username}! Please login') # F-strings from Python 3.6+
-+           return redirect('login') # name of the path we gave for /login
+ urlpatterns = [
+     ...
+ ]
 
-        ...
-    ...
++if settings.DEBUG:
++    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 ```
 
-### Create logout template
+You can now `runserver` and login to `localhost:8000/profile`
 
-<!-- prettier-ignore -->
-```html
-{% extends "blog/base.html" %}
+Feel free to upload a `default.jpeg` manually in the `/media/` directory.
 
-{% block content %}
-    <h2>You have been logged out</h2>
-    <div class="border-top pt-3">
-        <small class="text-muted">
-            <a class="ml-2" href="{% url 'login' %}">Login again</a>
-        </small>
-    </div>
-{% endblock content %}
-```
+## Signals
 
-#### Test `/logout`
+**Signals** in Django are similar to `events`.
 
-You may get an error somewhere in terminal:
+In this scenario, when we register a user, we want to also automatically set the default image for their profile. Since the `user` and `profile` have a `1-1` relationship.
 
-```bash
-[22/Feb/2024 10:49:32] "GET /logout/ HTTP/1.1" 405 0
-Method Not Allowed (GET): /logout/
-Method Not Allowed: /logout/
-```
-
-> Since Django v5, you need to logout through a **POST Request**, since it has side-effects.<br>Source: https://stackoverflow.com/questions/77690729/django-built-in-logout-view-method-not-allowed-get-users-logout
-
-**Example**
-
-```html
-<form method="post" action="{% url 'logout' %}">
-  {% csrf_token %}
-  <button type="submit">logout</button>
-</form>
-```
-
-`csrf` = cross-site request forgery (CSRF) ^[wiki](https://en.wikipedia.org/wiki/Cross-site_request_forgery)
-
-### Update `base.html` template to navigate login and register
-
-```html
-<a class="nav-item nav-link" href="{% url 'login' %}">Login</a>
-<a class="nav-item nav-link" href="{% url 'register' %}">Register</a>
-```
-
-We only want to display **Login** and **Register** _when the user is NOT logged in_.
-
-<!-- prettier-ignore -->
-```html
-<!-- The `user` variable is provided by **Django** -->
-{% if user.is_authenticated %}
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit">logout</button>
-    </form>
-{% else %}
-    <a class="nav-item nav-link" href="{% url 'login' %}">Login</a>
-    <a class="nav-item nav-link" href="{% url 'register' %}">Register</a>
-{% endif %}
-```
-
-**You can now run server and test `login` and `logout` feature**
-
-## Create User Profile view
-
-Users' `views.py`
+### Create `signals.py` under users subdirectory
 
 ```py
-def profile(request):
-    return render(request, 'users/profile.html')
+from django.db.models.signals import post_save # signal
+from django.contrib.auth.models import User # sender
+from django.dispatch import receiver # receiver
+from .models import Profile
+
+@receiver(post_save, sender=User)
+def create_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_profile(sender, instance, **kwargs):
+    instance.profile.save()
 ```
 
-`profile.html` template
-
-```html
-{% extends "blog/base.html" %} {% load crispy_forms_tags %} {% block content %}
-<!-- `user` variable is built-in within Django -->
-<h1>{{ user.username }}</h1>
-{% endblock content %}
-```
-
-Update `urls.py` for project
-
-```py
-path('profile/', user_views.profile, name='profile'),
-```
-
-Add link to profile in `base.html`
+### Update `users/apps.py`
 
 ```diff
-{% if user.is_authenticated %}
-+   <a class="nav-item nav-link" href="{% url 'profile' %}">Profile</a>
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button class="btn btn-dark" type="submit">Logout</button>
-    </form>
-{% else %}
+from django.apps import AppConfig
+
+class UsersConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'users'
+
++   def ready(self) -> None:
++       import users.signals # import here based on documentation as well to prevent side-effects
 ```
 
-## `@login_required` decorator to restrict pages
-
-Currently, anyone can access the `/profile` URL even when the user is NOT logged in.
-
-`users/views.py`
-
-```diff
-+from django.contrib.auth.decorators import login_required
-
- ...
-
-+@login_required
- def profile(request):
-     return render(request, 'users/profile.html')
-```
-
-### Add fallback page for `@login_required`
-
-Now, if you access the `/profile`, it will throw a `404 page not found` page. We can change this by adding the following in `settings.py`:
-
-```py
-LOGIN_URL = 'login' # name of path we gave for login page
-```
-
-Now if you access `/profile`, it will redirect to `/login/?next=/profile/` location instead.
-
-And when you logged in, it will redirect us back the the `/profile` page instead of our default redirect to the _blog-home_ page.
+Now try to `runserver` and register a new user. Then verify that there is a default profile created.
