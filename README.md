@@ -92,6 +92,32 @@ django-admin startproject <proj_name>
 └─  README.md
 ```
 
+Notice that it created a new folder within our empty directory.
+We can tell **Django** to create the project in the root directory instead.
+
+## Recommended Starting a Project
+
+To tell **Django** to create the project within the root directory is simply adding a `.` (period) after the project name.
+
+```bash
+django-admin startproject <proj_name> .
+```
+
+**OUTPUT**
+
+```txt
+.
+└─  proj_name
+│     ├─  __init__.py
+│     ├─  asgi.py
+│     ├─  settings.py
+│     ├─  urls.py
+│     └─  wsgi.py
+├─  manage.py
+├─  .gitignore
+└─  README.md
+```
+
 > **A single project can contain multiple apps**
 
 `manage.py` - This will be our commander when running servers, starting apps, etc.
